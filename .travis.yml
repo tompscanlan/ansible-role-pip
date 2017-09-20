@@ -1,41 +1,15 @@
-language: python
-python: "2.7"
-
+# Copyright © 2017 VMware, Inc. All Rights Reserved.
+---
 sudo: required
-
-env:
-  - image: ubuntu
-    tag: 14.04
-    init: /sbin/init
-    run_opts: ""
-    role: pip
-  - image: photon
-    tag: latest
-    init:
-    run_opts: ""
-    role: pip
-
-
+language: python
+cache: pip
 services:
   - docker
-
-before_install:
-  - sudo docker pull ${image}:${tag}
-  - sudo docker build --rm=true --file=tests/dockerfiles/${image}-${tag} -t ${image}:local .
-
 install:
-  - container_id=$(mktemp)
-  - sudo docker run --detach --volume=$(pwd):/etc/ansible/roles/${role}:ro ${run_opts} ${image}:local ${init} > "${container_id}"
-
+  - pip install molecule
+  - pip install docker
 script:
-  # syntax test
-  - sudo docker exec --tty "$(cat ${container_id})" env TERM=xterm /usr/bin/ansible-playbook /etc/ansible/roles/${role}/tests/test.yml --syntax-check
+  - molecule test -s travis
 
-  # run once
-  - sudo docker exec --tty "$(cat ${container_id})" env TERM=xterm /usr/bin/ansible-playbook /etc/ansible/roles/${role}/tests/test.yml
-
-  - >
-    sudo docker exec "$(cat ${container_id})" env ANSIBLE_NOCOLOR=1 /usr/bin/ansible-playbook /etc/ansible/roles/${role}/tests/test.yml
-    | grep -q 'changed=0.*failed=0'
-    && (echo 'Idempotence test: pass' && exit 0)
-    || (echo 'Idempotence test: fail' && exit 1)
+notifications:
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/
